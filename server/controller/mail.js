@@ -43,7 +43,7 @@ exports.sendEmail = async (title, email, name, message, action) => {
                 margin: 0 auto;
                 padding: 45px 20px 60px;
                 background: #f4f7ff;
-                background-image: url(https://github.com/shuvra-matrix/images/blob/main/542362-abstract-3D-gradient-blue-orange.jpg?raw=true);
+                background-image: url("");
                 background-repeat: no-repeat;
                 background-size: 800px 452px;
                 background-position: top center;
@@ -65,8 +65,7 @@ exports.sendEmail = async (title, email, name, message, action) => {
                     >
                         <img
                         alt=""
-                        src="https://github.com/shuvra-matrix/images/blob/main/blogsmall.png?raw=true"
-                        height="40px"
+                        src=""
                         /><span
                         style="
                             font-size: 1.4rem;
