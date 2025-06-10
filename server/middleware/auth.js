@@ -99,7 +99,10 @@ module.exports = async (req, res, next) => {
       throw error;
     }
 
-    const conditionTime = decodedToken.expireTime - 3600000;
+    // Only refresh token if it's close to expiration (within last 24 hours)
+    const expireTime = process.env.LOGIN_EXPIRES || 3600;
+    const refreshThreshold = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const conditionTime = decodedToken.expireTime - refreshThreshold;
     const currentTime = Date.now();
 
     if (currentTime >= conditionTime) {
