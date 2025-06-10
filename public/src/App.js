@@ -46,32 +46,38 @@ const App = () => {
   useEffect(() => {
     const url = apiUrl + "/auth/verifytoken";
 
-    const authVerify = () => {
-      fetch(url, {
-        method: "post",
-        credentials: "include",
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("auth failed");
+    const authVerify = async () => {
+      try {
+        const response = await fetch(url, {
+          method: "post",
+          credentials: "include",
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
-          return response.json();
-        })
-        .then((data) => {
-          setSearchData("");
-          if (data.message === "valid auth") {
-            setIsLogin(true);
-            localStorage.setItem("isLogin", "yes");
-          } else {
-            setIsLogin(false);
-            localStorage.removeItem("isLogin");
-          }
-        })
-        .catch((err) => {
-          console.error('Auth verification error:', err);
+        });
+
+        if (!response.ok) {
+          throw new Error("Authentication failed");
+        }
+
+        const data = await response.json();
+        setSearchData("");
+        
+        if (data.message === "valid auth") {
+          setIsLogin(true);
+          localStorage.setItem("isLogin", "yes");
+        } else {
           setIsLogin(false);
           localStorage.removeItem("isLogin");
-        });
+          logoutHandler("session");
+        }
+      } catch (err) {
+        console.error('Auth verification error:', err);
+        setIsLogin(false);
+        localStorage.removeItem("isLogin");
+        logoutHandler("session");
+      }
     };
 
     // Check if we have a login token in localStorage
@@ -86,7 +92,11 @@ const App = () => {
 
     fetch(url, { 
       method: "GET", 
-      credentials: "include" 
+      credentials: "include",
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     })
       .then((response) => {
         if (!response.ok) {
@@ -95,18 +105,15 @@ const App = () => {
         return response.json();
       })
       .then(() => {
-        localStorage.removeItem("isLogin");
-        localStorage.removeItem("option");
-        localStorage.removeItem("optionValue");
-        localStorage.removeItem("activeCat");
-        localStorage.removeItem("postStatus");
+        // Clear all local storage
+        localStorage.clear();
         setIsLogin(false);
         navigate("/");
       })
       .catch((err) => {
         console.error('Logout error:', err);
         // Even if the server request fails, clear local state
-        localStorage.removeItem("isLogin");
+        localStorage.clear();
         setIsLogin(false);
         navigate("/");
       });
