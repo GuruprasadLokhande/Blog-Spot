@@ -55,7 +55,6 @@ const App = () => {
           if (!response.ok) {
             throw new Error("auth failed");
           }
-
           return response.json();
         })
         .then((data) => {
@@ -69,44 +68,52 @@ const App = () => {
           }
         })
         .catch((err) => {
+          console.error('Auth verification error:', err);
           setIsLogin(false);
-          const data = localStorage.getItem("isLogin");
-          if (data) {
-            localStorage.removeItem("isLogin");
-          }
-          console.log(err);
+          localStorage.removeItem("isLogin");
         });
     };
-    try {
-      const getLocalData = localStorage.getItem("isLogin");
-      if (getLocalData) {
-        authVerify();
-      }
-    } catch (err) {
-      console.log("localstorage error");
+
+    // Check if we have a login token in localStorage
+    const getLocalData = localStorage.getItem("isLogin");
+    if (getLocalData === "yes") {
+      authVerify();
     }
   }, []);
 
   const logoutHandler = (type = "") => {
     const url = apiUrl + "/auth/logout";
 
-    fetch(url, { method: "GET", credentials: "include" })
+    fetch(url, { 
+      method: "GET", 
+      credentials: "include" 
+    })
       .then((response) => {
-        localStorage.clear("isLogin");
-        localStorage.clear("option");
-        localStorage.clear("optionValue");
-        localStorage.clear("activeCat");
-        localStorage.clear("postStatus");
+        if (!response.ok) {
+          throw new Error("Logout failed");
+        }
+        return response.json();
+      })
+      .then(() => {
+        localStorage.removeItem("isLogin");
+        localStorage.removeItem("option");
+        localStorage.removeItem("optionValue");
+        localStorage.removeItem("activeCat");
+        localStorage.removeItem("postStatus");
         setIsLogin(false);
         navigate("/");
       })
       .catch((err) => {
-        console.log(err);
+        console.error('Logout error:', err);
+        // Even if the server request fails, clear local state
+        localStorage.removeItem("isLogin");
+        setIsLogin(false);
+        navigate("/");
       });
 
     if (type === "session") {
       setIsMesssage(true);
-      setMessage("Your login session has expired.");
+      setMessage("Your login session has expired. Please log in again.");
     }
     if (type === "cookie-issue") {
       setIsMesssage(true);

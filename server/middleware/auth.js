@@ -69,6 +69,28 @@ module.exports = async (req, res, next) => {
       decodedToken = jwt.verify(token, secret);
     } catch (err) {
       console.error('Token verification error:', err);
+      // If token is expired, try to refresh it if possible
+      if (err.name === 'TokenExpiredError') {
+        try {
+          const decodedWithoutVerify = jwt.decode(token);
+          if (decodedWithoutVerify && decodedWithoutVerify.userId) {
+            const user = await User.findById(decodedWithoutVerify.userId);
+            if (user) {
+              refreshToekn(
+                res,
+                decodedWithoutVerify.email,
+                decodedWithoutVerify.userId,
+                decodedWithoutVerify.ip,
+                decodedWithoutVerify.userAgent
+              );
+              req.userId = decodedWithoutVerify.userId;
+              return next();
+            }
+          }
+        } catch (refreshError) {
+          console.error('Token refresh error:', refreshError);
+        }
+      }
       const error = new Error("Invalid or expired token");
       error.statusCode = 401;
       throw error;
