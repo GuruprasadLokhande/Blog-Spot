@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import styles from "./Auth.module.css";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LoaderForAuth from "../Loader/LoaderForAuth";
 import blogLogo from "../../media/bloglogo.png";
 
@@ -10,7 +10,7 @@ const apiUrl = process.env.REACT_APP_SERVER_URL || "http://localhost:3030";
 const Login = (props) => {
   const { state } = useLocation();
   const navigate = useNavigate();
-  let data = state?.message || "";
+  const [verificationMessage, setVerificationMessage] = useState(state?.message || "");
 
   const [inputData, setInputData] = useState({
     email: "",
@@ -22,6 +22,21 @@ const Login = (props) => {
   const [isError, setIsError] = useState(false);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Clear verification message after 5 seconds
+  useEffect(() => {
+    if (verificationMessage) {
+      const timer = setTimeout(() => {
+        setVerificationMessage("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [verificationMessage]);
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const inputDataHandler = (e) => {
     const { name, value } = e.target;
@@ -37,21 +52,23 @@ const Login = (props) => {
     });
 
     setIsError(false);
+    setMessage("");
   };
 
   const loginHandler = async (e) => {
     e.preventDefault();
     setMessage("");
     setIsLoading(true);
+    setIsError(false);
 
     // Validate input
-    if (!inputData.email.includes("@") || inputData.email.length < 8) {
+    if (!inputData.email || !validateEmail(inputData.email)) {
       setEmailError(true);
       setMessage("Please enter a valid email address");
       setIsLoading(false);
       return;
     }
-    if (inputData.password.length < 6) {
+    if (!inputData.password || inputData.password.length < 6) {
       setPassError(true);
       setMessage("Password must be at least 6 characters long");
       setIsLoading(false);
@@ -59,6 +76,7 @@ const Login = (props) => {
     }
 
     try {
+      console.log('Attempting login for:', inputData.email);
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         credentials: "include",
@@ -72,34 +90,50 @@ const Login = (props) => {
         }),
       });
 
-      console.log("Login response:", {
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonErr) {
+        console.error('Error parsing response:', jsonErr);
+        throw new Error('Invalid server response');
+      }
+
+      console.log('Login response:', {
         status: response.status,
         ok: response.ok,
-        data: await response.clone().json()
+        data: responseData
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.errors?.message || "Login failed");
+        if (responseData.error === 'yes' && responseData.errors) {
+          if (responseData.errors.message === "Please verify your email before logging in") {
+            navigate("/signup", { 
+              state: { 
+                message: "Please verify your email before logging in. Check your email for the verification code." 
+              } 
+            });
+            return;
+          }
+          throw new Error(responseData.errors.message || 'Login failed');
+        }
+        throw new Error(responseData.message || 'Login failed');
       }
 
-      const data = await response.json();
-      
-      if (data.message === "login success") {
-        console.log("Login successful, setting user data");
+      if (responseData.message === "login success" || responseData.message === "login done") {
+        console.log('Login successful, setting user data');
         localStorage.setItem("isLogin", "yes");
-        if (data.user) {
-          localStorage.setItem("userName", data.user.name);
+        if (responseData.user) {
+          localStorage.setItem("userName", responseData.user.name);
         }
         props.isLogin(true);
         navigate("/");
       } else {
-        throw new Error(data.errors?.message || "Login failed");
+        throw new Error(responseData.message || 'Login failed');
       }
     } catch (err) {
-      console.error("Login error:", err);
+      console.error('Login error:', err);
       setIsError(true);
-      setMessage(err.message);
+      setMessage(err.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +159,7 @@ const Login = (props) => {
             <span>Sign Up</span>
           </Link>
         </p>
-        <form method="post" onSubmit={loginHandler}>
+        <form method="post" onSubmit={loginHandler} noValidate>
           <div className={styles["input-section"]}>
             <div
               className={`${styles["email"]} ${
@@ -141,6 +175,7 @@ const Login = (props) => {
                 autoComplete="username"
                 placeholder="your@example.com"
                 id="email"
+                required
               ></input>
             </div>
             <div
@@ -157,6 +192,8 @@ const Login = (props) => {
                 value={inputData.password}
                 placeholder="Enter 6 character or more "
                 id="pass"
+                required
+                minLength="6"
               ></input>
               <Link to="/forgotpassword">
                 <p className={styles["forgot"]}>Forgot Password</p>
@@ -174,10 +211,8 @@ const Login = (props) => {
           )}
         </form>
         {isError && <p className={styles["message"]}>{message}</p>}
-        {data.length > 4 ? (
-          <p className={styles["verify-message"]}>{data}</p>
-        ) : (
-          ""
+        {verificationMessage && (
+          <p className={styles["verify-message"]}>{verificationMessage}</p>
         )}
       </div>
 
