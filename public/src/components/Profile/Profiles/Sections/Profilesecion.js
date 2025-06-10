@@ -9,7 +9,7 @@ const apiUrl = process.env.REACT_APP_SERVER_URL || "http://localhost:3030";
 
 const ProfileSection = (props) => {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState({});
+  const [profileData, setProfileData] = useState({});
   const [isLoader, setLoader] = useState(false);
   const [isSmallLaoder, setSmallLoader] = useState(false);
   const [inputData, setInputData] = useState({
@@ -27,6 +27,7 @@ const ProfileSection = (props) => {
   const [message, setMessage] = useState("");
   const [isMessage, setIsMesssage] = useState(false);
   const [messageType, setMessageType] = useState("");
+  const [error, setError] = useState("");
 
   const crossHandler = (value) => {
     setIsMesssage(value);
@@ -48,47 +49,49 @@ const ProfileSection = (props) => {
   };
 
   useEffect(() => {
-    const url = apiUrl + "/profile/profile";
     setLoader(true);
+    setError("");
+    const url = apiUrl + "/profile/profile";
     fetch(url, {
       method: "GET",
       credentials: "include",
+      headers: {
+        "Accept": "application/json"
+      }
     })
       .then((response) => {
         if (!response.ok) {
-          return response.json().then(data => {
-            throw new Error(data.errors?.message || "Authentication failed");
-          });
+          if (response.status === 401) {
+            throw new Error("Authentication required");
+          }
+          throw new Error("Failed to fetch profile");
         }
         return response.json();
       })
       .then((data) => {
         if (data?.error === "yes") {
-          throw new Error(data.errors?.message || "Server error");
+          throw new Error(data.message || "Failed to fetch profile");
         }
-        setUserData(data.userData);
+        setProfileData(data);
         setLoader(false);
       })
       .catch((err) => {
-        console.error("Profile fetch error:", err);
+        console.error('Profile fetch error:', err);
+        setError(err.message);
         setLoader(false);
-        setIsMesssage(true);
-        setMessageType("error");
-        setMessage(err.message || "Server Error!");
-        
-        // If authentication error, redirect to login
-        if (err.message.includes("Authentication") || err.message.includes("token")) {
-          props.logout("session");
-          navigate("/login");
+        if (err.message === "Authentication required") {
+          navigate("/login", { 
+            state: { message: "Please login to view your profile" }
+          });
         }
       });
-  }, [props, navigate]);
+  }, [navigate]);
 
   useEffect(() => {
     const interval = setTimeout(() => {
       const isEmailValid = emailValidHandler(inputData.email.trim());
       if (
-        userData.email !== inputData.email &&
+        profileData.email !== inputData.email &&
         inputData.email.length > 1 &&
         isEmailValid &&
         !isOtpSend
@@ -102,7 +105,7 @@ const ProfileSection = (props) => {
     return () => {
       clearTimeout(interval);
     };
-  }, [inputData.email, userData.email, isOtpSend]);
+  }, [inputData.email, profileData.email, isOtpSend]);
 
   const otpHandler = () => {
     const emailValid = emailValidHandler(inputData.email);
@@ -152,189 +155,128 @@ const ProfileSection = (props) => {
       });
   };
 
-  const onSubmitHandler = (e) => {
+  const updateHandler = (e) => {
     e.preventDefault();
-    setSmallLoader(true);
-    const name = inputData.name || userData.name;
-    const email = inputData.email || userData.email;
-    const website = inputData.website || userData.website;
-    const bio = inputData.bio || userData.bio;
-    const location = inputData.location || userData.location;
-    const otp = inputData.otp || "";
-    const isOtp = isOtpSend;
+    setLoader(true);
+    setError("");
+    const url = apiUrl + "/profile/updateprofile";
+    const formData = new FormData(e.target);
 
-    const url = apiUrl + "/profile/editprofile";
     fetch(url, {
       method: "PUT",
+      body: formData,
       credentials: "include",
-      body: JSON.stringify({
-        name: name,
-        email: email,
-        website: website,
-        bio: bio,
-        location: location,
-        otp: otp,
-        isOtp: isOtp,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
     })
       .then((response) => {
-        setInputData({
-          name: "",
-          email: "",
-          location: "",
-          website: "",
-          bio: "",
-          otp: "",
-        });
-
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("Authentication required");
+          }
+          throw new Error("Failed to update profile");
+        }
         return response.json();
       })
       .then((data) => {
-        setSmallLoader(false);
-        setNewEmail(false);
-        setOtpSend(false);
-        if (data?.data === "invalid token") {
-          props.logout("session");
-        } else if ((data.message = "profile update")) {
-          setIsMesssage(true);
-          setMessageType("message");
-          setMessage("Upload Success!");
-          setUserData(data.userData);
-          navigate("/profile");
-        } else {
-          throw new Error("Upload Failed!");
+        if (data?.error === "yes") {
+          throw new Error(data.message || "Failed to update profile");
         }
+        setProfileData(data);
+        setLoader(false);
+        setIsMesssage(true);
+        setMessageType("message");
+        setMessage("Profile updated successfully!");
       })
       .catch((err) => {
-        setSmallLoader(false);
-        setNewEmail(false);
-        setOtpSend(false);
+        console.error('Profile update error:', err);
+        setError(err.message);
+        setLoader(false);
         setIsMesssage(true);
         setMessageType("error");
-        setMessage("Upload Failed!");
-        console.log(err);
+        setMessage(err.message);
+        if (err.message === "Authentication required") {
+          navigate("/login", { 
+            state: { message: "Please login to update your profile" }
+          });
+        }
       });
   };
 
   return (
-    <div className={styles["profile-main"]}>
-      <h3>Profile</h3>
-      {isSmallLaoder && (
-        <div className={styles["small-loader"]}>
-          <LoaderSmall />
-        </div>
-      )}
-
+    <Fragment>
       {isLoader && (
         <div className={styles["loader"]}>
           <LoaderBig />
         </div>
       )}
-      {isMessage && (
-        <Message type={messageType} message={message} cross={crossHandler} />
+      {error && (
+        <div className={styles["error"]}>
+          <p>{error}</p>
+        </div>
       )}
-      {!isLoader && (
-        <form action="" method="post" onSubmit={onSubmitHandler}>
-          <div className={styles["profile-sub"]}>
-            <div className={styles["section"]}>
-              <label htmlFor="">Name</label>
-              <input
-                type="text"
-                name="name"
-                placeholder={userData.name}
-                onChange={inputHandler}
-                value={inputData.name}
-              ></input>
-            </div>
-            <div
-              className={`${styles["section"]} ${
-                !isEmailValid ? styles["invalid"] : ""
-              }`}
-            >
-              <label htmlFor="">Email</label>
-              {isOtpSend ? (
-                <input
-                  onChange={inputHandler}
-                  type="text"
-                  name="email"
-                  placeholder={userData.email}
-                  value={inputData.email}
-                  readOnly
-                ></input>
-              ) : (
-                <input
-                  onChange={inputHandler}
-                  type="text"
-                  name="email"
-                  placeholder={userData.email}
-                  value={inputData.email}
-                ></input>
-              )}
-            </div>
-            {isNewEmail && (
-              <div className={styles["button"]}>
-                <button onClick={otpHandler} type="button">
-                  Send OTP
-                </button>
-              </div>
-            )}
-            {isOtpSend && (
-              <div className={styles["section"]}>
-                <label htmlFor="">OTP</label>
-                <input
-                  onChange={inputHandler}
-                  type="text"
-                  name="otp"
-                  placeholder="Please Enter Your OTP"
-                ></input>
-              </div>
-            )}
-            {!isNewEmail && (
-              <Fragment>
-                <div className={styles["section"]}>
-                  <label htmlFor="">Location</label>
-                  <input
-                    onChange={inputHandler}
-                    type="text"
-                    name="location"
-                    placeholder={userData.location}
-                    value={inputData.location}
-                  ></input>
-                </div>
-                <div className={styles["section"]}>
-                  <label htmlFor="">Website</label>
-                  <input
-                    onChange={inputHandler}
-                    type="text"
-                    name="website"
-                    placeholder={userData.website}
-                    value={inputData.website}
-                  ></input>
-                </div>
-                <div className={styles["section"]}>
-                  <label htmlFor="">Bio</label>
-                  <input
-                    onChange={inputHandler}
-                    type="text"
-                    name="bio"
-                    placeholder={userData.bio}
-                    value={inputData.bio}
-                  ></input>
-                </div>{" "}
-              </Fragment>
-            )}
-          </div>
-          {!isNewEmail && (
-            <div className={styles["button"]}>
-              <button type="submit">Update info</button>
+      {!isLoader && !error && (
+        <Fragment>
+          {isMessage && (
+            <div className={styles["message"]}>
+              <Message
+                type={messageType}
+                message={message}
+                cross={crossHandler}
+              />
             </div>
           )}
-        </form>
+          <div className={styles["profile-main"]}>
+            <form onSubmit={updateHandler}>
+              <div className={styles["profile-sub"]}>
+                <div className={styles["image-section"]}>
+                  <img
+                    src={profileData.image || "https://img.icons8.com/ios/50/user--v1.png"}
+                    alt="profile"
+                  ></img>
+                  <input
+                    type="file"
+                    name="image"
+                    accept="image/*"
+                    id="image"
+                  ></input>
+                  <label htmlFor="image">Change Photo</label>
+                </div>
+                <div className={styles["input-section"]}>
+                  <div className={styles["input"]}>
+                    <label htmlFor="name">Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      id="name"
+                      defaultValue={profileData.name}
+                      required
+                    ></input>
+                  </div>
+                  <div className={styles["input"]}>
+                    <label htmlFor="email">Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      id="email"
+                      defaultValue={profileData.email}
+                      required
+                    ></input>
+                  </div>
+                  <div className={styles["input"]}>
+                    <label htmlFor="bio">Bio</label>
+                    <textarea
+                      name="bio"
+                      id="bio"
+                      defaultValue={profileData.bio}
+                    ></textarea>
+                  </div>
+                  <button type="submit">Update Profile</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </Fragment>
       )}
-    </div>
+    </Fragment>
   );
 };
 

@@ -1,10 +1,13 @@
 const express = require("express");
-const mongoos = require("mongoose");
+const mongoose = require("mongoose");
 const multer = require("multer");
 const requestIp = require("request-ip");
-require("dotenv").config();
+const path = require("path");
+const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+
+dotenv.config();
 
 const app = express();
 
@@ -18,30 +21,25 @@ app.use(requestIp.mw());
 
 // CORS configuration
 const allowedOrigins = [
-  "http://localhost:3000",
-  "https://blog-spot-alpha.vercel.app"
+  'http://localhost:3000',
+  'https://blog-spot-alpha.vercel.app'
 ];
 
-// CORS middleware
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
-  res.setHeader("Access-Control-Expose-Headers", "Set-Cookie");
-  
-  // Handle preflight requests
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-  
-  next();
-});
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 
 // add rateLimit later
 //
@@ -98,7 +96,7 @@ app.use((error, req, res, next) => {
 });
 
 // Database connection
-mongoos
+mongoose
   .connect(MONGO_URL)
   .then(() => {
     console.log('Connected to MongoDB successfully');

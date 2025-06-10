@@ -1,43 +1,51 @@
 import LoaderBig from "../Loader/LoaderBig";
 import styles from "./Singlepost.module.css";
-
 import { Fragment, useEffect, useState } from "react";
 import DOMPurify from "dompurify";
+import { useNavigate } from "react-router-dom";
 
 const apiUrl = process.env.REACT_APP_SERVER_URL || "http://localhost:3030";
 
 const Singlepost = () => {
+  const navigate = useNavigate();
   const [postsData, setPostData] = useState({
     post: { post: { user: {} } },
     createDate: "",
     updateDate: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setIsLoading(true);
+    setError("");
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const queryString = window.location.search;
     const params = new URLSearchParams(queryString);
     let title = params.get("title");
     let id = params.get("id");
     const url = apiUrl + "/public/getsinglepost";
+    
     if (title && id) {
       fetch(url, {
         method: "post",
         credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           title: title,
           postId: id,
           timeZone: userTimezone,
         }),
-        headers: {
-          "Content-Type": "application/json",
-        },
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error("no post available");
+            if (response.status === 401) {
+              throw new Error("Authentication required");
+            }
+            throw new Error("Post not available");
           }
           return response.json();
         })
@@ -48,11 +56,20 @@ const Singlepost = () => {
           }
         })
         .catch((err) => {
-          console.log(err);
+          console.error('Error fetching post:', err);
+          setError(err.message);
           setIsLoading(false);
+          if (err.message === "Authentication required") {
+            navigate("/login", { 
+              state: { message: "Please login to view this post" }
+            });
+          }
         });
+    } else {
+      setError("Invalid post URL");
+      setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   const sanitizedContent = DOMPurify.sanitize(postsData.post.post.content);
 
@@ -63,7 +80,12 @@ const Singlepost = () => {
           <LoaderBig />
         </div>
       )}
-      {!isLoading && postsData.post.createDate && (
+      {error && (
+        <div className={styles["error"]}>
+          <p>{error}</p>
+        </div>
+      )}
+      {!isLoading && !error && postsData.post.createDate && (
         <div className={styles["post-main"]}>
           <div className={styles["post-sub"]}>
             <div className={styles["title-section"]}>
