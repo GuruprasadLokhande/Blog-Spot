@@ -284,7 +284,7 @@ exports.login = async (req, res, next) => {
         path: '/',
         sameSite: process.env.APPLICATION_START_MODE === "production" ? "None" : "lax",
         secure: process.env.APPLICATION_START_MODE === "production",
-        domain: process.env.APPLICATION_START_MODE === "production" ? ".onrender.com" : undefined
+        domain: process.env.APPLICATION_START_MODE === "production" ? "blog-spot-server-4k98.onrender.com" : undefined
       };
 
       console.log('Setting cookies for user:', user.email);
@@ -517,7 +517,7 @@ exports.getLogout = (req, res, next) => {
     path: '/',
     sameSite: process.env.APPLICATION_START_MODE === "production" ? "None" : "lax",
     secure: process.env.APPLICATION_START_MODE === "production",
-    domain: process.env.APPLICATION_START_MODE === "production" ? ".onrender.com" : undefined
+    domain: process.env.APPLICATION_START_MODE === "production" ? "blog-spot-server-4k98.onrender.com" : undefined
   };
 
   res.clearCookie("user_token", options);

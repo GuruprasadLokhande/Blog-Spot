@@ -28,7 +28,7 @@ const Singlepost = () => {
     
     if (title && id) {
       fetch(url, {
-        method: "post",
+        method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",

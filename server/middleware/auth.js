@@ -28,7 +28,7 @@ const refreshToken = (res, email, userId, ip, userAgent) => {
     path: '/',
     sameSite: process.env.APPLICATION_START_MODE === "production" ? "None" : "lax",
     secure: process.env.APPLICATION_START_MODE === "production",
-    domain: process.env.APPLICATION_START_MODE === "production" ? ".onrender.com" : undefined
+    domain: process.env.APPLICATION_START_MODE === "production" ? "blog-spot-server-4k98.onrender.com" : undefined
   };
 
   res.cookie("user_token", token, options);

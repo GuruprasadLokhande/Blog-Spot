@@ -56,7 +56,8 @@ const ProfileSection = (props) => {
       method: "GET",
       credentials: "include",
       headers: {
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       }
     })
       .then((response) => {
