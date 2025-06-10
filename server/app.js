@@ -22,22 +22,26 @@ const allowedOrigins = [
   "https://blog-spot-alpha.vercel.app"
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-    exposedHeaders: ["Set-Cookie"],
-    maxAge: 86400 // 24 hours
-  })
-);
+// CORS middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+  res.setHeader("Access-Control-Expose-Headers", "Set-Cookie");
+  
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 // add rateLimit later
 //
