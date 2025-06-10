@@ -6,9 +6,8 @@ import LoaderForAuth from "../Loader/LoaderForAuth";
 import blogLogo from "../../media/bloglogo.png";
 
 const apiUrl = process.env.REACT_APP_SERVER_URL || "http://localhost:3030";
-const domain = process.env.REACT_APP_DOMAIN || "localhost";
 
-const Login = (propes) => {
+const Login = (props) => {
   const { state } = useLocation();
   const navigate = useNavigate();
   let data = state?.message || "";
@@ -20,9 +19,9 @@ const Login = (propes) => {
 
   const [emailError, setEmailError] = useState(false);
   const [passError, setPassError] = useState(false);
-  const [isError, setIsError] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [message, setMessage] = useState("");
-  const [isLoader, setIsLoader] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const inputDataHandler = (e) => {
     const { name, value } = e.target;
@@ -33,8 +32,8 @@ const Login = (propes) => {
       setPassError(false);
     }
 
-    setInputData((pre) => {
-      return { ...pre, [name]: value };
+    setInputData((prev) => {
+      return { ...prev, [name]: value };
     });
 
     setIsError(false);
@@ -42,8 +41,22 @@ const Login = (propes) => {
 
   const loginHandler = async (e) => {
     e.preventDefault();
-    setError("");
+    setMessage("");
     setIsLoading(true);
+
+    // Validate input
+    if (!inputData.email.includes("@") || inputData.email.length < 8) {
+      setEmailError(true);
+      setMessage("Please enter a valid email address");
+      setIsLoading(false);
+      return;
+    }
+    if (inputData.password.length < 6) {
+      setPassError(true);
+      setMessage("Password must be at least 6 characters long");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch(`${apiUrl}/auth/login`, {
@@ -78,7 +91,7 @@ const Login = (propes) => {
         if (data.user) {
           localStorage.setItem("userName", data.user.name);
         }
-        propes.isLogin(true);
+        props.isLogin(true);
         navigate("/");
       } else {
         throw new Error(data.errors?.message || "Login failed");
@@ -88,7 +101,7 @@ const Login = (propes) => {
       setIsError(true);
       setMessage(err.message);
     } finally {
-      setIsLoader(false);
+      setIsLoading(false);
     }
   };
 
@@ -150,7 +163,7 @@ const Login = (propes) => {
               </Link>
             </div>
           </div>
-          {isLoader ? (
+          {isLoading ? (
             <button className={styles["btn"]} type="button" disabled>
               <LoaderForAuth />
             </button>
