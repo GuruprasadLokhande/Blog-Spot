@@ -40,80 +40,40 @@ const Login = (propes) => {
     setIsError(false);
   };
 
-  const onSubmitHandler = async (e) => {
+  const loginHandler = async (e) => {
     e.preventDefault();
-    setIsError(false);
-    setMessage("");
-
-    // Validate input
-    if (!inputData.email.includes("@") || inputData.email.length < 8) {
-      setEmailError(true);
-      setMessage("Please enter a valid email address");
-      return;
-    }
-    if (inputData.password.length < 6) {
-      setPassError(true);
-      setMessage("Password must be at least 6 characters long");
-      return;
-    }
-
-    setIsLoader(true);
-    const url = apiUrl + "/auth/login";
+    setError("");
+    setIsLoading(true);
 
     try {
-      console.log('Attempting login for:', inputData.email);
-      const response = await fetch(url, {
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           email: inputData.email,
           password: inputData.password,
         }),
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonErr) {
-        data = {};
-      }
-      console.log('Login response:', {
+      console.log("Login response:", {
         status: response.status,
         ok: response.ok,
-        data: data
+        data: await response.clone().json()
       });
 
       if (!response.ok) {
-        console.error('Server error:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: data
-        });
-        
-        if (data.error === 'yes' && data.errors) {
-          if (data.errors.message === "Please verify your email before logging in") {
-            navigate("/signup", { 
-              state: { 
-                message: "Please verify your email before logging in. Check your email for the verification code." 
-              } 
-            });
-            return;
-          }
-          // Show all error details
-          let errorMessage = data.errors.message || '';
-          if (data.errors.details) errorMessage += `\nDetails: ${data.errors.details}`;
-          if (data.errors.stack) errorMessage += `\nStack: ${data.errors.stack}`;
-          throw new Error(errorMessage || 'Server error occurred');
-        }
-        // If no error details, show raw response
-        throw new Error(`Server error (${response.status}): ${response.statusText}\n${JSON.stringify(data)}`);
+        const errorData = await response.json();
+        throw new Error(errorData.errors?.message || "Login failed");
       }
 
-      if (data.message === "login done") {
-        console.log('Login successful, setting user data');
+      const data = await response.json();
+      
+      if (data.message === "login success") {
+        console.log("Login successful, setting user data");
         localStorage.setItem("isLogin", "yes");
         if (data.user) {
           localStorage.setItem("userName", data.user.name);
@@ -121,16 +81,12 @@ const Login = (propes) => {
         propes.isLogin(true);
         navigate("/");
       } else {
-        throw new Error("Server response was not as expected");
+        throw new Error(data.errors?.message || "Login failed");
       }
     } catch (err) {
-      console.error('Login error details:', {
-        message: err.message,
-        name: err.name,
-        stack: err.stack
-      });
+      console.error("Login error:", err);
       setIsError(true);
-      setMessage(err.message || "Login failed. Please try again.");
+      setMessage(err.message);
     } finally {
       setIsLoader(false);
     }
@@ -156,7 +112,7 @@ const Login = (propes) => {
             <span>Sign Up</span>
           </Link>
         </p>
-        <form method="post" onSubmit={onSubmitHandler}>
+        <form method="post" onSubmit={loginHandler}>
           <div className={styles["input-section"]}>
             <div
               className={`${styles["email"]} ${

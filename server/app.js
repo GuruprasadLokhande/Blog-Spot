@@ -4,6 +4,7 @@ const multer = require("multer");
 const requestIp = require("request-ip");
 require("dotenv").config();
 const cookieParser = require("cookie-parser");
+const cors = require("cors");
 
 const app = express();
 
@@ -16,25 +17,27 @@ app.use(cookieParser());
 app.use(requestIp.mw());
 
 // CORS configuration
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    "http://localhost:3000",
-    "https://blog-spot-alpha.vercel.app"
-  ];
-  const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, DELETE, PATCH, PUT"
-  );
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://blog-spot-alpha.vercel.app"
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+    exposedHeaders: ["Set-Cookie"],
+    maxAge: 86400 // 24 hours
+  })
+);
 
 // add rateLimit later
 //
