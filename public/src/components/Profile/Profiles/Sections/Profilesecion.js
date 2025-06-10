@@ -41,8 +41,8 @@ const ProfileSection = (props) => {
 
   const inputHandler = (e) => {
     const { name, value } = e.target;
-    setInputData((pre) => {
-      return { ...pre, [name]: value };
+    setInputData((prev) => {
+      return { ...prev, [name]: value };
     });
     setNewEmail(false);
     setEmailValid(true);
@@ -73,7 +73,15 @@ const ProfileSection = (props) => {
         if (data?.error === "yes") {
           throw new Error(data.message || "Failed to fetch profile");
         }
-        setProfileData(data);
+        setProfileData(data.userData);
+        setInputData({
+          name: data.userData.name || "",
+          email: data.userData.email || "",
+          location: data.userData.location || "",
+          website: data.userData.website || "",
+          bio: data.userData.bio || "",
+          otp: ""
+        });
         setLoader(false);
       })
       .catch((err) => {
@@ -117,18 +125,21 @@ const ProfileSection = (props) => {
     }
 
     const url = apiUrl + "/profile/genotp";
-    const email = inputData.email;
     fetch(url, {
       method: "POST",
       body: JSON.stringify({
-        email: email,
+        email: inputData.email,
       }),
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json"
       },
     })
       .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to send OTP");
+        }
         return response.json();
       })
       .then((data) => {
@@ -140,33 +151,44 @@ const ProfileSection = (props) => {
           setNewEmail(false);
           setIsMesssage(true);
           setMessageType("message");
-          setMessage("OTP Send");
+          setMessage("OTP Sent Successfully!");
         } else {
-          throw new Error("OTP Send Failed");
+          throw new Error("Failed to send OTP");
         }
       })
       .catch((err) => {
         setSmallLoader(false);
-        console.log(err);
+        console.error('OTP error:', err);
         setOtpSend(false);
         setNewEmail(false);
         setIsMesssage(true);
         setMessageType("error");
-        setMessage("OTP Send Failed.");
+        setMessage(err.message || "Failed to send OTP");
       });
   };
 
   const updateHandler = (e) => {
     e.preventDefault();
-    setLoader(true);
+    setSmallLoader(true);
     setError("");
-    const url = apiUrl + "/profile/updateprofile";
-    const formData = new FormData(e.target);
 
+    const url = apiUrl + "/profile/editprofile";
     fetch(url, {
       method: "PUT",
-      body: formData,
+      body: JSON.stringify({
+        name: inputData.name || profileData.name,
+        email: inputData.email || profileData.email,
+        location: inputData.location || profileData.location,
+        website: inputData.website || profileData.website,
+        bio: inputData.bio || profileData.bio,
+        otp: inputData.otp,
+        isOtp: isOtpSend
+      }),
       credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      }
     })
       .then((response) => {
         if (!response.ok) {
@@ -181,16 +203,26 @@ const ProfileSection = (props) => {
         if (data?.error === "yes") {
           throw new Error(data.message || "Failed to update profile");
         }
-        setProfileData(data);
-        setLoader(false);
+        setProfileData(data.userData);
+        setSmallLoader(false);
         setIsMesssage(true);
         setMessageType("message");
         setMessage("Profile updated successfully!");
+        setInputData({
+          name: "",
+          email: "",
+          location: "",
+          website: "",
+          bio: "",
+          otp: ""
+        });
+        setOtpSend(false);
+        setNewEmail(false);
       })
       .catch((err) => {
         console.error('Profile update error:', err);
         setError(err.message);
-        setLoader(false);
+        setSmallLoader(false);
         setIsMesssage(true);
         setMessageType("error");
         setMessage(err.message);
@@ -226,53 +258,112 @@ const ProfileSection = (props) => {
             </div>
           )}
           <div className={styles["profile-main"]}>
+            <h3>Profile</h3>
+            {isSmallLaoder && (
+              <div className={styles["small-loader"]}>
+                <LoaderSmall />
+              </div>
+            )}
             <form onSubmit={updateHandler}>
               <div className={styles["profile-sub"]}>
-                <div className={styles["image-section"]}>
-                  <img
-                    src={profileData.image || "https://img.icons8.com/ios/50/user--v1.png"}
-                    alt="profile"
-                  ></img>
-                  <input
-                    type="file"
-                    name="image"
-                    accept="image/*"
-                    id="image"
-                  ></input>
-                  <label htmlFor="image">Change Photo</label>
-                </div>
                 <div className={styles["input-section"]}>
-                  <div className={styles["input"]}>
+                  <div className={styles["section"]}>
                     <label htmlFor="name">Name</label>
                     <input
                       type="text"
                       name="name"
                       id="name"
-                      defaultValue={profileData.name}
-                      required
-                    ></input>
+                      placeholder={profileData.name}
+                      value={inputData.name}
+                      onChange={inputHandler}
+                    />
                   </div>
-                  <div className={styles["input"]}>
+                  <div className={`${styles["section"]} ${!isEmailValid ? styles["invalid"] : ""}`}>
                     <label htmlFor="email">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      id="email"
-                      defaultValue={profileData.email}
-                      required
-                    ></input>
+                    {isOtpSend ? (
+                      <input
+                        type="email"
+                        name="email"
+                        id="email"
+                        placeholder={profileData.email}
+                        value={inputData.email}
+                        onChange={inputHandler}
+                        readOnly
+                      />
+                    ) : (
+                      <input
+                        type="email"
+                        name="email"
+                        id="email"
+                        placeholder={profileData.email}
+                        value={inputData.email}
+                        onChange={inputHandler}
+                      />
+                    )}
                   </div>
-                  <div className={styles["input"]}>
-                    <label htmlFor="bio">Bio</label>
-                    <textarea
-                      name="bio"
-                      id="bio"
-                      defaultValue={profileData.bio}
-                    ></textarea>
-                  </div>
-                  <button type="submit">Update Profile</button>
+                  {isNewEmail && (
+                    <div className={styles["button"]}>
+                      <button type="button" onClick={otpHandler}>
+                        Send OTP
+                      </button>
+                    </div>
+                  )}
+                  {isOtpSend && (
+                    <div className={styles["section"]}>
+                      <label htmlFor="otp">OTP</label>
+                      <input
+                        type="text"
+                        name="otp"
+                        id="otp"
+                        placeholder="Enter OTP"
+                        value={inputData.otp}
+                        onChange={inputHandler}
+                      />
+                    </div>
+                  )}
+                  {!isNewEmail && (
+                    <Fragment>
+                      <div className={styles["section"]}>
+                        <label htmlFor="location">Location</label>
+                        <input
+                          type="text"
+                          name="location"
+                          id="location"
+                          placeholder={profileData.location}
+                          value={inputData.location}
+                          onChange={inputHandler}
+                        />
+                      </div>
+                      <div className={styles["section"]}>
+                        <label htmlFor="website">Website</label>
+                        <input
+                          type="text"
+                          name="website"
+                          id="website"
+                          placeholder={profileData.website}
+                          value={inputData.website}
+                          onChange={inputHandler}
+                        />
+                      </div>
+                      <div className={styles["section"]}>
+                        <label htmlFor="bio">Bio</label>
+                        <textarea
+                          name="bio"
+                          id="bio"
+                          placeholder={profileData.bio}
+                          value={inputData.bio}
+                          onChange={inputHandler}
+                        />
+                      </div>
+                    </Fragment>
+                  )}
                 </div>
               </div>
+              {!isNewEmail && (
+                <div className={styles["button"]}>
+                  <button type="submit">Update Profile</button>
+                </div>
+              )}
             </form>
           </div>
         </Fragment>
