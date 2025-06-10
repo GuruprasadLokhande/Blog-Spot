@@ -262,7 +262,7 @@ exports.login = async (req, res, next) => {
     let token;
     try {
       console.log('Generating JWT token...');
-      const expireTime = process.env.LOGIN_EXPIRES || 3600; // Default to 1 hour in seconds
+      const expireTime = parseInt(process.env.LOGIN_EXPIRES) || 604800; // Default to 7 days in seconds
       const tokenExpiry = Date.now() + (expireTime * 1000); // Convert to milliseconds for storage
       token = jwt.sign(
         {
@@ -277,19 +277,15 @@ exports.login = async (req, res, next) => {
       );
       console.log('JWT token generated successfully');
 
-      // Set cookies
+      // Set cookies with proper settings for production
       const options = {
         maxAge: expireTime * 1000, // Convert to milliseconds for cookie
         httpOnly: true,
         path: '/',
-        sameSite: 'lax'
+        sameSite: process.env.APPLICATION_START_MODE === "production" ? "None" : "lax",
+        secure: process.env.APPLICATION_START_MODE === "production",
+        domain: process.env.APPLICATION_START_MODE === "production" ? ".onrender.com" : undefined
       };
-
-      if (process.env.APPLICATION_START_MODE === "production") {
-        options.secure = true;
-        options.sameSite = "None";
-        options.domain = process.env.DOMAIN || "localhost";
-      }
 
       console.log('Setting cookies for user:', user.email);
       res.cookie("user_token", token, options);
@@ -515,15 +511,18 @@ exports.getLogout = (req, res, next) => {
   const cookieSting = req.headers.cookie;
   const cookieName = "user_token";
   const token = getCookieValue.getCookieValue(cookieSting, cookieName);
-  const domain = process.env.DOMAIN || "localhost";
-  const option = {
-    domain: domain,
-    sameSite: "None",
-    secure: true,
+  
+  const options = {
+    httpOnly: true,
+    path: '/',
+    sameSite: process.env.APPLICATION_START_MODE === "production" ? "None" : "lax",
+    secure: process.env.APPLICATION_START_MODE === "production",
+    domain: process.env.APPLICATION_START_MODE === "production" ? ".onrender.com" : undefined
   };
-  res.clearCookie("user_token", option);
-  res.clearCookie("isLogin", option);
-  res.status(200).json({ messgae: "logout done" });
+
+  res.clearCookie("user_token", options);
+  res.clearCookie("isLogin", options);
+  res.status(200).json({ message: "logout done" });
 
   User.findById(req.userId)
     .then((user) => {
