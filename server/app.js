@@ -17,8 +17,16 @@ app.use(requestIp.mw());
 
 // CORS configuration
 app.use((req, res, next) => {
-  const allowedOrigins = process.env.ALLOW_ORIGINES || "http://localhost:3000";
-  res.setHeader("Access-Control-Allow-Origin", allowedOrigins);
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "https://blog-spot-alpha.vercel.app"
+  ];
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, DELETE, PATCH, PUT"
