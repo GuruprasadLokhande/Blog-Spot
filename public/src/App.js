@@ -87,36 +87,33 @@ const App = () => {
     }
   }, []);
 
-  const logoutHandler = (type = "") => {
-    const url = apiUrl + "/auth/logout";
-
-    fetch(url, { 
-      method: "GET", 
-      credentials: "include",
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Logout failed");
+  const logoutHandler = async (type = "") => {
+    try {
+      const url = apiUrl + "/auth/logout";
+      const response = await fetch(url, { 
+        method: "GET", 
+        credentials: "include",
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-        return response.json();
-      })
-      .then(() => {
-        // Clear all local storage
-        localStorage.clear();
-        setIsLogin(false);
-        navigate("/");
-      })
-      .catch((err) => {
-        console.error('Logout error:', err);
-        // Even if the server request fails, clear local state
-        localStorage.clear();
-        setIsLogin(false);
-        navigate("/");
       });
+
+      if (!response.ok) {
+        throw new Error("Logout failed");
+      }
+
+      // Clear all local storage
+      localStorage.clear();
+      setIsLogin(false);
+      navigate("/");
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Even if the server request fails, clear local state
+      localStorage.clear();
+      setIsLogin(false);
+      navigate("/");
+    }
 
     if (type === "session") {
       setIsMesssage(true);

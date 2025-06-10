@@ -27,12 +27,9 @@ const refreshToken = (res, email, userId, ip, userAgent) => {
     httpOnly: true,
     path: '/',
     sameSite: process.env.APPLICATION_START_MODE === "production" ? "None" : "lax",
-    secure: process.env.APPLICATION_START_MODE === "production"
+    secure: process.env.APPLICATION_START_MODE === "production",
+    domain: process.env.APPLICATION_START_MODE === "production" ? ".onrender.com" : undefined
   };
-
-  if (process.env.APPLICATION_START_MODE === "production") {
-    options.domain = process.env.DOMAIN || "localhost";
-  }
 
   res.cookie("user_token", token, options);
   res.cookie("isLogin", "yes", options);
